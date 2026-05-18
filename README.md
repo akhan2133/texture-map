@@ -70,6 +70,7 @@ samples/processed/
 ```
 
 ## Project Structure
+```text
 texture_map/
   README.md
   requirements.txt
@@ -79,3 +80,4 @@ texture_map/
   texture_map/
     __init__.py
     prepare.py
+```
