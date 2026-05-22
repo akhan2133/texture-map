@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 samples/raw/
 samples/processed/
+index/

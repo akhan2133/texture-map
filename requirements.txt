@@ -2,3 +2,7 @@ soundfile
 librosa
 numpy
 pyloudnorm
+msclap
+typeguard
+torchaudio
+torchcodec

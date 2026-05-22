@@ -37,8 +37,16 @@ This project is currently being built in stages.
 - Exports processed WAV files
 - Writes a metadata.json file for later stages
 
-## Stage 2: Embed Sample Library (In Progress)
-Generate audio embeddings for each processed sample so the system can search the library by meaning, mood, and texture.
+## Stage 2: Embed Sample Library (Implemented)
+- Reads samples/processed/metadata.json
+- Loads each processed WAV file
+- Uses CLAP through msclap to generate audio embeddings
+- Normalizes embeddings for cosine similarity
+- Saves embeddings to index/embeddings.npy
+- Saves index metadata to index/metadata.json
+
+## Stage 3: Prompt Based Retrieval (In Progress)
+Use a text prompt to retrieve matching sounds from the embedded sample library.
 
 ## Installation:
 Create and activate a virtual environment:
@@ -54,6 +62,7 @@ python -m pip install -r requirements.txt
 ```
 
 ## Usage
+### Step 1
 Place raw audio files in:
 ```bash
 samples/raw/
@@ -69,15 +78,36 @@ Processed files and metadata will be written to:
 samples/processed/
 ```
 
+### Step 2
+After generating processed WAVs and metadata, run:
+```bash
+python -m texture_map.embed samples/processed/metadata.json index/
+```
+
+This writes:
+```bash
+index/embeddings.npy
+index/metadata.json
+```
+
+For GPU acceleration, you can optionally run:
+```
+python -m texture_map.embed samples/processed/metadata.json index/ --cuda
+```
+CPU is fine for smaller libraries.
+
+
 ## Project Structure
 ```text
 texture_map/
   README.md
   requirements.txt
+  index/
   samples/
     raw/
     processed/
   texture_map/
     __init__.py
     prepare.py
+    embed.py
 ```
