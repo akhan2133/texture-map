@@ -117,9 +117,9 @@ Top matches:
 1. ui_1_mystical_selection.wav    score: 0.53
 2. ui_5_confirmation.wav          score: 0.51
 3. texture_1_sweep.wav            score: 0.50
+```
 
 The --k flag controls how many matches are shown. It is optional and defaults to 8 if not provided. The value must be a whole number of at least 1. If --k is larger than the number of indexed samples, TextureMap will simply show all available samples.
-```
 
 ## Project Structure
 ```text
