@@ -45,8 +45,15 @@ This project is currently being built in stages.
 - Saves embeddings to index/embeddings.npy
 - Saves index metadata to index/metadata.json
 
-## Stage 3: Prompt Based Retrieval (In Progress)
-Use a text prompt to retrieve matching sounds from the embedded sample library.
+## Stage 3: Prompt Based Retrieval (Implemented)
+- Loads index/metadata.json
+- Loads index/embeddings.npy
+- Embeds a text prompt using the same CLAP model version as the index
+- Normalizes the text embedding
+- Compares the prompt embedding to audio embeddings using dot product
+- Prints the top matching samples with similarity scores
+
+## Stage 4: Layer Selection (In Progress)
 
 ## Installation:
 Create and activate a virtual environment:
@@ -96,6 +103,23 @@ python -m texture_map.embed samples/processed/metadata.json index/ --cuda
 ```
 CPU is fine for smaller libraries.
 
+### Step 3
+After building the index, retrieve sounds that match a text prompt:
+```bash
+python -m texture_map.retrieve "dark souls ui menu click sound" index/ --k 3
+```
+
+This prints the top matching samples:
+```text
+Prompt: "dark souls ui menu click sound"
+
+Top matches:
+1. ui_1_mystical_selection.wav    score: 0.53
+2. ui_5_confirmation.wav          score: 0.51
+3. texture_1_sweep.wav            score: 0.50
+
+The --k flag controls how many matches are shown. It is optional and defaults to 8 if not provided. The value must be a whole number of at least 1. If --k is larger than the number of indexed samples, TextureMap will simply show all available samples.
+```
 
 ## Project Structure
 ```text
@@ -110,4 +134,5 @@ texture_map/
     __init__.py
     prepare.py
     embed.py
+    retrieve.py
 ```

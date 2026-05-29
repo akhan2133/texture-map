@@ -56,6 +56,9 @@ def normalize_loudness(audio: np.ndarray, sr: int, target_lufs: float = TARGET_L
     """
     meter = pyln.Meter(sr)
 
+    if len(audio) <= int(sr * meter.block_size):
+        return audio, None
+
     loudness = meter.integrated_loudness(audio)
 
     # If the file is basically silent or weird, skip normalization
@@ -68,6 +71,9 @@ def normalize_loudness(audio: np.ndarray, sr: int, target_lufs: float = TARGET_L
     peak = np.max(np.abs(normalized_audio))
     if peak > 1.0:
         normalized_audio = normalized_audio / peak * 0.98
+
+    if len(normalized_audio) <= int(sr * meter.block_size):
+        return normalized_audio, None
 
     final_loudness = meter.integrated_loudness(normalized_audio)
 
