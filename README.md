@@ -53,7 +53,14 @@ This project is currently being built in stages.
 - Compares the prompt embedding to audio embeddings using dot product
 - Prints the top matching samples with similarity scores
 
-## Stage 4: Layer Selection (In Progress)
+## Stage 4: Layer Selection (Implemented)
+- Retrieves a larger candidate pool from the prompt
+- Analyzes simple audio features for each candidate
+- Assigns rough sound-design roles such as bed, low, detail, texture, foreground, and motion
+- Selects a balanced set of layers instead of blindly taking the top matches
+- Prints the selected layers with scores, role reasons, and a basic recipe
+
+## Stage 5: Producer Control Layer (In Progress)
 
 ## Installation:
 Create and activate a virtual environment:
@@ -88,6 +95,8 @@ samples/processed/
 ### Step 2
 After generating processed WAVs and metadata, run:
 ```bash
+# The export HF_HUB_DISABLE_XET=1 has to do with Hugging Face Xet downloads hanging at 0%. It seems like its an issue other people have faced too, so its better to just disable it and download without using Xet.
+export HF_HUB_DISABLE_XET=1
 python -m texture_map.embed samples/processed/metadata.json index/
 ```
 
@@ -121,6 +130,40 @@ Top matches:
 
 The --k flag controls how many matches are shown. It is optional and defaults to 8 if not provided. The value must be a whole number of at least 1. If --k is larger than the number of indexed samples, TextureMap will simply show all available samples.
 
+### Step 4
+After building the index, select a balanced set of layers from a larger retrieval pool:
+```bash
+python -m texture_map.select_layers "<your-prompt>" index/ --pool-k 20 --layers 6
+```
+
+This prints the selected layer roles and a simple recipe:
+```text
+Prompt: "insanely pretty vox"
+
+Candidate pool size: 20
+Target layers: 6
+
+Selected layers:
+
+[bed       ] texture_5_space_fantasy.wav       score: 0.13    reason: long + steady
+[bed       ] ambience_7_dark_mystical.wav      score: 0.12    reason: long + steady
+[detail    ] music_9_good_morning_tokyo.wav    score: 0.09    reason: bright/high centroid
+[texture   ] ui_10_chirp.wav                   score: 0.13    reason: noisy/grainy texture
+[foreground] impact_2_man_hit.wav              score: 0.07    reason: short/transient
+[motion    ] music_8_big_bad_boss.wav          score: 0.10    reason: variable/noisy texture
+
+Recipe:
+
+Use texture_5_space_fantasy.wav as a background bed.
+Layer ambience_7_dark_mystical.wav quietly underneath.
+Place music_9_good_morning_tokyo.wav as bright detail.
+Layer ui_10_chirp.wav as texture.
+Use impact_2_man_hit.wav as a foreground accent.
+Use music_8_big_bad_boss.wav as motion/noise texture.
+```
+
+The --pool-k flag controls how many retrieval matches are analyzed before layer selection. The --layers flag controls the target number of selected layers. Both values must be whole numbers of at least 1.
+
 ## Project Structure
 ```text
 texture_map/
@@ -135,4 +178,5 @@ texture_map/
     prepare.py
     embed.py
     retrieve.py
+    select_layers.py
 ```
