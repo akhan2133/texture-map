@@ -60,7 +60,14 @@ This project is currently being built in stages.
 - Selects a balanced set of layers instead of blindly taking the top matches
 - Prints the selected layers with scores, role reasons, and a basic recipe
 
-## Stage 5: Producer Control Layer (In Progress)
+## Stage 5: Audio Transformation (Implemented)
+- Loads one processed WAV file
+- Keeps audio in stereo NumPy format
+- Applies simple producer controls to one layer at a time
+- Uses real Pedalboard effects for filters, reverb, delay, pitch shifting, distortion, gain, and limiting
+- Supports brightness, distance, movement, tension, and texture controls
+- Can trim or loop a clip to a target duration
+- Exports one transformed WAV file
 
 ## Installation:
 Create and activate a virtual environment:
@@ -95,7 +102,8 @@ samples/processed/
 ### Step 2
 After generating processed WAVs and metadata, run:
 ```bash
-# The export HF_HUB_DISABLE_XET=1 has to do with Hugging Face Xet downloads hanging at 0%. It seems like its an issue other people have faced too, so its better to just disable it and download without using Xet.
+# The export HF_HUB_DISABLE_XET=1 has to do with Hugging Face Xet downloads hanging at 0%. 
+# It an issue other people have faced too, so its better to just disable it.
 export HF_HUB_DISABLE_XET=1
 python -m texture_map.embed samples/processed/metadata.json index/
 ```
@@ -164,6 +172,46 @@ Use music_8_big_bad_boss.wav as motion/noise texture.
 
 The --pool-k flag controls how many retrieval matches are analyzed before layer selection. The --layers flag controls the target number of selected layers. Both values must be whole numbers of at least 1.
 
+### Step 5
+After selecting or choosing a single processed WAV, transform it with producer controls:
+```bash
+python -m texture_map.transform samples/processed/ambience_5_rain.wav outputs/test_transform.wav \
+  --brightness 0.7 \
+  --distance 0.4 \
+  --movement 0.5 \
+  --tension 0.3 \
+  --texture 0.6 \
+  --duration 8 \
+  --normalize
+```
+
+This loads one input WAV, applies the controls, and writes one transformed WAV:
+```text
+Transformed one TextureMap layer.
+Input: samples/processed/ambience_5_rain.wav
+Output: outputs/test_transform.wav
+Sample rate: 44100 Hz
+Duration: 8.00 seconds
+Controls:
+  brightness: 0.70
+  distance: 0.40
+  movement: 0.50
+  tension: 0.30
+  texture: 0.60
+Target duration: 8.00 seconds
+Normalize before save: True
+```
+
+The controls are floating point values from 0.0 to 1.0:
+
+- `--brightness`: 0.0 is darker and low-passed, 0.5 is mostly unchanged, and 1.0 is brighter.
+- `--distance`: 0.0 is close and present, while 1.0 is quieter, darker, narrower, and wetter.
+- `--movement`: 0.0 is static, while 1.0 adds a more obvious slow autopan.
+- `--tension`: 0.0 is smoother, while 1.0 is sharper and more saturated.
+- `--texture`: 0.0 is clean, while 1.0 is more delayed, smeared, and reverse-blended.
+
+The `--duration` flag trims or loops the source to the target length before transformation. The `--normalize` flag peak-normalizes the result before saving. Without `--normalize`, TextureMap still keeps the saved WAV at a safe output level.
+
 ## Project Structure
 ```text
 texture_map/
@@ -179,4 +227,5 @@ texture_map/
     embed.py
     retrieve.py
     select_layers.py
+    transform.py
 ```

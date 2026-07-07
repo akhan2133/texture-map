@@ -6,3 +6,4 @@ msclap
 typeguard
 torchaudio
 torchcodec
+pedalboard

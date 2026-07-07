@@ -4,3 +4,4 @@ __pycache__/
 samples/raw/
 samples/processed/
 index/
+outputs/
