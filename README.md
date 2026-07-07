@@ -102,8 +102,10 @@ samples/processed/
 ### Step 2
 After generating processed WAVs and metadata, run:
 ```bash
-# The export HF_HUB_DISABLE_XET=1 has to do with Hugging Face Xet downloads hanging at 0%. 
-# It an issue other people have faced too, so its better to just disable it.
+# Disable Hugging Face's Xet downloader. 
+# On some systems, Xet downloads can hang at 0% when fetching models such as MS-CLAP. 
+# TextureMap does not require Xet specifically.
+# So, this uses the standard Hugging Face download path to make setup more reliable.
 export HF_HUB_DISABLE_XET=1
 python -m texture_map.embed samples/processed/metadata.json index/
 ```
