@@ -69,6 +69,15 @@ This project is currently being built in stages.
 - Can trim or loop a clip to a target duration
 - Exports one transformed WAV file
 
+## Stage 6: Mix Rendering (Implemented)
+- Takes one text prompt and renders one final soundscape WAV
+- Reuses prompt retrieval and balanced layer selection
+- Uses density only to choose the target layer count
+- Transforms each selected layer with the producer controls
+- Places the transformed clips on a fixed stereo timeline
+- Applies safe master limiting/normalization
+- Exports a recipe JSON explaining the rendered layers
+
 ## Installation:
 Create and activate a virtual environment:
 ```bash
@@ -214,6 +223,35 @@ The controls are floating point values from 0.0 to 1.0:
 
 The `--duration` flag trims or loops the source to the target length before transformation. The `--normalize` flag peak-normalizes the result before saving. Without `--normalize`, TextureMap still keeps the saved WAV at a safe output level.
 
+### Step 6
+After building the index, render a complete prompt-based soundscape:
+```bash
+python -m texture_map.mix "wet neon alley" index/ outputs/wet_neon_alley.wav --duration 20 --seed 42
+```
+
+TextureMap retrieves candidates, selects a balanced layer palette, transforms each layer, places clips on a fixed timeline, and writes:
+```text
+outputs/wet_neon_alley.wav
+outputs/wet_neon_alley.recipe.json
+```
+
+Use the producer controls to shape the rendered mix:
+```bash
+python -m texture_map.mix "wet neon alley" index/ outputs/wet_neon_alley.wav \
+  --duration 20 \
+  --seed 42 \
+  --pool-k 20 \
+  --brightness 0.7 \
+  --density 0.6 \
+  --distance 0.4 \
+  --movement 0.5 \
+  --tension 0.3 \
+  --texture 0.6 \
+  --normalize
+```
+
+Density maps to the number of layers requested from Stage 4: `0.0` selects 2 layers, `0.5` selects 5 layers, and `1.0` selects 8 layers. It does not select layers a second time.
+   
 ## Project Structure
 ```text
 texture_map/
@@ -230,4 +268,5 @@ texture_map/
     retrieve.py
     select_layers.py
     transform.py
+    mix.py
 ```
