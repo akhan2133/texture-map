@@ -44,7 +44,7 @@ def clamp01(value: float) -> float:
 def density_to_layer_count(
     density: float,
     min_layers: int = 2,
-    max_layers: int = 8,
+    max_layers: int = 10,
 ) -> int:
     if min_layers < 1:
         raise ValueError("min_layers must be at least 1.")
@@ -130,6 +130,58 @@ def _filename_from_layer(layer: dict, index_dir: Path) -> str:
     sample = _sample_from_layer(layer)
     fallback = sample.get("id", "unknown.wav")
     return Path(sample.get("path", fallback)).name or _path_from_layer(layer, index_dir).name
+
+
+def _crop_source_region(
+    audio: np.ndarray,
+    sr: int,
+    layer: dict,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Crop a layer before transformation and report the frame-accurate bounds."""
+    audio = ensure_stereo(audio)
+    if sr <= 0:
+        raise ValueError("The source sample rate must be greater than 0.")
+    if len(audio) == 0:
+        raise ValueError("The selected source audio is empty.")
+
+    source_duration = len(audio) / float(sr)
+    raw_start = layer.get("source_start", 0.0)
+    raw_end = layer.get("source_end", source_duration)
+    raw_start = 0.0 if raw_start is None else raw_start
+    raw_end = source_duration if raw_end is None else raw_end
+
+    try:
+        requested_start = float(raw_start)
+        requested_end = float(raw_end)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Source-region bounds must be numeric seconds.") from exc
+
+    if not np.isfinite(requested_start) or not np.isfinite(requested_end):
+        raise ValueError("Source-region bounds must be finite seconds.")
+    if requested_start < 0:
+        raise ValueError("source_start must be greater than or equal to 0.")
+    if requested_end <= requested_start:
+        raise ValueError("source_end must be greater than source_start.")
+
+    start_frame = int(round(requested_start * sr))
+    end_frame = int(round(requested_end * sr))
+    start_frame = max(0, min(start_frame, len(audio)))
+    end_frame = max(0, min(end_frame, len(audio)))
+
+    if end_frame <= start_frame:
+        raise ValueError(
+            "The selected source region is empty or starts beyond the available audio."
+        )
+
+    cropped = audio[start_frame:end_frame].astype(np.float32, copy=True)
+    source_start = start_frame / float(sr)
+    source_end = end_frame / float(sr)
+    return cropped, {
+        "source_start": round(source_start, 4),
+        "source_end": round(source_end, 4),
+        "source_region_duration": round(source_end - source_start, 4),
+        "source_duration": round(source_duration, 4),
+    }
 
 
 def _gain_for_role(role: str, rng: np.random.Generator) -> float:
@@ -264,6 +316,7 @@ def create_mix(
     pool_k: int = 20,
     normalize: bool = True,
     recipe_path: Path | None = None,
+    selected_layers: list[dict] | None = None,
 ) -> dict:
     if duration <= 0:
         raise ValueError("duration must be greater than 0.")
@@ -279,10 +332,15 @@ def create_mix(
 
     controls = _merge_controls(controls)
     layer_count = density_to_layer_count(controls["density"])
-    selected = select_layers(prompt, index_dir, pool_k=pool_k, layers=layer_count)
+    if selected_layers is None:
+        selected = select_layers(prompt, index_dir, pool_k=pool_k, layers=layer_count)
+    else:
+        selected = list(selected_layers)
 
     if not selected:
         raise ValueError("No valid layers were selected for this prompt.")
+    if any(not isinstance(layer, dict) for layer in selected):
+        raise ValueError("Every selected layer must be a metadata dictionary.")
 
     rng = np.random.default_rng(seed)
     rendered_layers = []
@@ -296,6 +354,7 @@ def create_mix(
             raise FileNotFoundError(f"Selected audio file is missing: {path}")
 
         audio, sr = load_audio(path)
+        audio, source_region = _crop_source_region(audio, sr, layer)
         if mix_sr is None:
             mix_sr = sr
         elif sr != mix_sr:
@@ -327,6 +386,7 @@ def create_mix(
                 "duration": placement["duration"],
                 "gain_db": placement["gain_db"],
                 "reason": layer.get("reason"),
+                **source_region,
             }
         )
 
@@ -348,6 +408,8 @@ def create_mix(
         "seed": int(seed),
         "pool_k": int(pool_k),
         "layer_count": int(layer_count),
+        "requested_layer_count": int(layer_count),
+        "curated_layer_count": len(selected),
         "rendered_layer_count": len(recipe_layers),
         "sample_rate": int(mix_sr),
         "normalize": bool(normalize),

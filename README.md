@@ -1,192 +1,112 @@
 # TextureMap
 
-TextureMap is a prompt-based sound design sketchpad.
+TextureMap is a prompt-driven sound-design sketchpad. It searches an indexed sample
+library, proposes a balanced set of layers, lets you audition and refine each source
+region, then transforms and mixes the curated material into a finished WAV. Audio is
+retrieved from your own library rather than generated from scratch.
 
-The goal is to turn a folder of audio samples into layered sound textures based on a text prompt. Instead of generating audio from scratch, TextureMap uses retrieval, transformation, and mixing: it finds relevant sounds from a sample library, applies audio transformations, layers them together, and exports a final WAV file with a recipe of how it was made.
+## How It Works
 
-## Core Idea
+1. Raw samples are standardized as stereo, 44.1 kHz WAV files with consistent
+   loudness and a maximum duration of 20 seconds.
+2. MS-CLAP converts the processed library into searchable audio embeddings.
+3. A text prompt retrieves related sounds, and lightweight audio analysis balances
+   them across roles such as bed, texture, detail, foreground, low, and motion.
+4. In the Streamlit app, you can audition every proposal, exclude unwanted layers,
+   and drag or resize the purple waveform region to choose the exact source audio.
+5. Producer controls transform the curated layers before they are placed on a stereo
+   timeline and safely limited.
+6. TextureMap exports the final WAV and a JSON recipe containing the prompt,
+   controls, source regions, placements, gains, and selected clips.
 
-```text
-sample folder
-   ↓
-analyze + embed samples
-   ↓
-user prompt
-   ↓
-retrieve matching sounds
-   ↓
-choose 3–8 layers
-   ↓
-apply transformations
-   ↓
-mix soundscape
-   ↓
-export WAV + show recipe
-```
+## Installation
 
-This project is currently being built in stages.
+Create and activate a virtual environment, then install the dependencies:
 
-## Stage 1: Load and Standardize Samples (Implemented)
-- Scans a raw sample folder
-- Loads supported audio files
-- Converts audio to a standard format
-- Resamples to 44.1kHz
-- Converts mono files to stereo
-- Trims long files to a maximum length
-- Normalizes loudness to a target LUFS level
-- Exports processed WAV files
-- Writes a metadata.json file for later stages
-
-## Stage 2: Embed Sample Library (Implemented)
-- Reads samples/processed/metadata.json
-- Loads each processed WAV file
-- Uses CLAP through msclap to generate audio embeddings
-- Normalizes embeddings for cosine similarity
-- Saves embeddings to index/embeddings.npy
-- Saves index metadata to index/metadata.json
-
-## Stage 3: Prompt Based Retrieval (Implemented)
-- Loads index/metadata.json
-- Loads index/embeddings.npy
-- Embeds a text prompt using the same CLAP model version as the index
-- Normalizes the text embedding
-- Compares the prompt embedding to audio embeddings using dot product
-- Prints the top matching samples with similarity scores
-
-## Stage 4: Layer Selection (Implemented)
-- Retrieves a larger candidate pool from the prompt
-- Analyzes simple audio features for each candidate
-- Assigns rough sound-design roles such as bed, low, detail, texture, foreground, and motion
-- Selects a balanced set of layers instead of blindly taking the top matches
-- Prints the selected layers with scores, role reasons, and a basic recipe
-
-## Stage 5: Audio Transformation (Implemented)
-- Loads one processed WAV file
-- Keeps audio in stereo NumPy format
-- Applies simple producer controls to one layer at a time
-- Uses real Pedalboard effects for filters, reverb, delay, pitch shifting, distortion, gain, and limiting
-- Supports brightness, distance, movement, tension, and texture controls
-- Can trim or loop a clip to a target duration
-- Exports one transformed WAV file
-
-## Stage 6: Mix Rendering (Implemented)
-- Takes one text prompt and renders one final soundscape WAV
-- Reuses prompt retrieval and balanced layer selection
-- Uses density only to choose the target layer count
-- Transforms each selected layer with the producer controls
-- Places the transformed clips on a fixed stereo timeline
-- Applies safe master limiting/normalization
-- Exports a recipe JSON explaining the rendered layers
-
-## Installation:
-Create and activate a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-Install dependencies:
-```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Usage
-### Step 1
-Place raw audio files in:
-```bash
-samples/raw/
-```
+## Prepare a Sample Library
 
-Then run:
+Place supported audio files (`.wav`, `.mp3`, `.flac`, `.aiff`, `.aif`, or `.ogg`)
+in `samples/raw/`, then standardize them:
+
 ```bash
 python -m texture_map.prepare samples/raw samples/processed
 ```
 
-Processed files and metadata will be written to:
-```bash
-samples/processed/
-```
+This creates processed WAV files and `samples/processed/metadata.json`. Build the
+search index from that metadata:
 
-### Step 2
-After generating processed WAVs and metadata, run:
 ```bash
-# Disable Hugging Face's Xet downloader. 
-# On some systems, Xet downloads can hang at 0% when fetching models such as MS-CLAP. 
-# TextureMap does not require Xet specifically.
-# So, this uses the standard Hugging Face download path to make setup more reliable.
 export HF_HUB_DISABLE_XET=1
 python -m texture_map.embed samples/processed/metadata.json index/
 ```
 
-This writes:
-```bash
-index/embeddings.npy
-index/metadata.json
-```
+The environment variable uses Hugging Face's standard download path, which avoids
+Xet download stalls seen on some systems. Embedding runs on CPU by default; add
+`--cuda` when CUDA is available.
 
-For GPU acceleration, you can optionally run:
-```
-python -m texture_map.embed samples/processed/metadata.json index/ --cuda
-```
-CPU is fine for smaller libraries.
+A complete index contains:
 
-### Step 3
-After building the index, retrieve sounds that match a text prompt:
-```bash
-python -m texture_map.retrieve "dark souls ui menu click sound" index/ --k 3
-```
-
-This prints the top matching samples:
 ```text
-Prompt: "dark souls ui menu click sound"
-
-Top matches:
-1. ui_1_mystical_selection.wav    score: 0.53
-2. ui_5_confirmation.wav          score: 0.51
-3. texture_1_sweep.wav            score: 0.50
+index/
+├── embeddings.npy
+└── metadata.json
 ```
 
-The --k flag controls how many matches are shown. It is optional and defaults to 8 if not provided. The value must be a whole number of at least 1. If --k is larger than the number of indexed samples, TextureMap will simply show all available samples.
+## Run the App
 
-### Step 4
-After building the index, select a balanced set of layers from a larger retrieval pool:
+Once the sample library and index are ready, launch the interface from the repository
+root:
+
 ```bash
-python -m texture_map.select_layers "<your-prompt>" index/ --pool-k 20 --layers 6
+streamlit run app.py
 ```
 
-This prints the selected layer roles and a simple recipe:
-```text
-Prompt: "insanely pretty vox"
+The app uses a discovery-and-curation workflow:
 
-Candidate pool size: 20
-Target layers: 6
+1. Enter a sound-design prompt, choose a proposal count from 2–10, set the retrieval
+   pool size, and click **Find Layers**.
+2. Use each compact source player to browse its selected region and use **Include**
+   to control whether the layer reaches the mix.
+3. Expand a layer to inspect its role, similarity, duration, and selection reason.
+   Drag the purple waveform region to move it or drag either edge to resize it. When
+   the edit ends, the compact player updates to preview only that region.
+4. Set brightness, distance, movement, tension, texture, output duration, and seed.
+5. Click **Generate Texture** to render, audition, and download the WAV and recipe
+   JSON.
 
-Selected layers:
+The requested proposal count is not a required final layer count. Excluded layers are
+not rendered, and every included waveform region is cropped before transformation,
+looping, and timeline placement.
 
-[bed       ] texture_5_space_fantasy.wav       score: 0.13    reason: long + steady
-[bed       ] ambience_7_dark_mystical.wav      score: 0.12    reason: long + steady
-[detail    ] music_9_good_morning_tokyo.wav    score: 0.09    reason: bright/high centroid
-[texture   ] ui_10_chirp.wav                   score: 0.13    reason: noisy/grainy texture
-[foreground] impact_2_man_hit.wav              score: 0.07    reason: short/transient
-[motion    ] music_8_big_bad_boss.wav          score: 0.10    reason: variable/noisy texture
+## Command-Line Tools
 
-Recipe:
+The same pipeline can be used without Streamlit.
 
-Use texture_5_space_fantasy.wav as a background bed.
-Layer ambience_7_dark_mystical.wav quietly underneath.
-Place music_9_good_morning_tokyo.wav as bright detail.
-Layer ui_10_chirp.wav as texture.
-Use impact_2_man_hit.wav as a foreground accent.
-Use music_8_big_bad_boss.wav as motion/noise texture.
-```
+Retrieve the closest prompt matches:
 
-The --pool-k flag controls how many retrieval matches are analyzed before layer selection. The --layers flag controls the target number of selected layers. Both values must be whole numbers of at least 1.
-
-### Step 5
-After selecting or choosing a single processed WAV, transform it with producer controls:
 ```bash
-python -m texture_map.transform samples/processed/ambience_5_rain.wav outputs/test_transform.wav \
+python -m texture_map.retrieve "dark souls UI menu click" index/ --k 8
+```
+
+Select a role-balanced palette from a larger retrieval pool:
+
+```bash
+python -m texture_map.select_layers "wet neon alley" index/ --pool-k 20 --layers 6
+```
+
+Transform a single processed WAV:
+
+```bash
+python -m texture_map.transform \
+  samples/processed/ambience_5_rain.wav \
+  outputs/rain_transformed.wav \
   --brightness 0.7 \
   --distance 0.4 \
   --movement 0.5 \
@@ -196,48 +116,13 @@ python -m texture_map.transform samples/processed/ambience_5_rain.wav outputs/te
   --normalize
 ```
 
-This loads one input WAV, applies the controls, and writes one transformed WAV:
-```text
-Transformed one TextureMap layer.
-Input: samples/processed/ambience_5_rain.wav
-Output: outputs/test_transform.wav
-Sample rate: 44100 Hz
-Duration: 8.00 seconds
-Controls:
-  brightness: 0.70
-  distance: 0.40
-  movement: 0.50
-  tension: 0.30
-  texture: 0.60
-Target duration: 8.00 seconds
-Normalize before save: True
-```
+Render a complete prompt-driven mix automatically:
 
-The controls are floating point values from 0.0 to 1.0:
-
-- `--brightness`: 0.0 is darker and low-passed, 0.5 is mostly unchanged, and 1.0 is brighter.
-- `--distance`: 0.0 is close and present, while 1.0 is quieter, darker, narrower, and wetter.
-- `--movement`: 0.0 is static, while 1.0 adds a more obvious slow autopan.
-- `--tension`: 0.0 is smoother, while 1.0 is sharper and more saturated.
-- `--texture`: 0.0 is clean, while 1.0 is more delayed, smeared, and reverse-blended.
-
-The `--duration` flag trims or loops the source to the target length before transformation. The `--normalize` flag peak-normalizes the result before saving. Without `--normalize`, TextureMap still keeps the saved WAV at a safe output level.
-
-### Step 6
-After building the index, render a complete prompt-based soundscape:
 ```bash
-python -m texture_map.mix "wet neon alley" index/ outputs/wet_neon_alley.wav --duration 20 --seed 42
-```
-
-TextureMap retrieves candidates, selects a balanced layer palette, transforms each layer, places clips on a fixed timeline, and writes:
-```text
-outputs/wet_neon_alley.wav
-outputs/wet_neon_alley.recipe.json
-```
-
-Use the producer controls to shape the rendered mix:
-```bash
-python -m texture_map.mix "wet neon alley" index/ outputs/wet_neon_alley.wav \
+python -m texture_map.mix \
+  "wet neon alley" \
+  index/ \
+  outputs/wet_neon_alley.wav \
   --duration 20 \
   --seed 42 \
   --pool-k 20 \
@@ -250,23 +135,62 @@ python -m texture_map.mix "wet neon alley" index/ outputs/wet_neon_alley.wav \
   --normalize
 ```
 
-Density maps to the number of layers requested from Stage 4: `0.0` selects 2 layers, `0.5` selects 5 layers, and `1.0` selects 8 layers. It does not select layers a second time.
-   
-## Project Structure
+All producer controls accept values from `0.0` to `1.0`:
+
+| Control | Effect |
+| --- | --- |
+| `brightness` | Darker and filtered to brighter and more present |
+| `density` | Requests 2–10 layers for automatic CLI rendering |
+| `distance` | Close and dry to quieter, darker, narrower, and wetter |
+| `movement` | Static positioning to stronger slow stereo motion |
+| `tension` | Smooth processing to sharper saturation |
+| `texture` | Clean audio to delayed, smeared, and reverse-blended audio |
+
+For automatic CLI mixes, density `0.0`, `0.5`, and `1.0` request 2, 6, and 10
+layers respectively. In the app, the explicitly curated layer set takes precedence.
+The seed makes randomized gains and timeline placement reproducible.
+
+## Outputs
+
+Each complete render writes two files:
+
 ```text
-texture_map/
-  README.md
-  requirements.txt
-  index/
-  samples/
-    raw/
-    processed/
-  texture_map/
-    __init__.py
-    prepare.py
-    embed.py
-    retrieve.py
-    select_layers.py
-    transform.py
-    mix.py
+outputs/<name>.wav
+outputs/<name>.recipe.json
 ```
+
+The recipe records the rendered layer count, source filenames and regions, assigned
+roles, similarity scores, timeline positions, gains, producer controls, duration,
+sample rate, and seed.
+
+## Project Structure
+
+```text
+texture-map/
+├── app.py                         # Streamlit discovery, curation, and render UI
+├── README.md
+├── requirements.txt
+├── samples/
+│   ├── raw/                       # User-supplied source audio
+│   └── processed/                 # Standardized WAVs and metadata.json
+├── index/
+│   ├── embeddings.npy             # Normalized MS-CLAP audio embeddings
+│   └── metadata.json              # Search-index metadata
+├── outputs/                       # Rendered WAVs and recipe JSON files
+└── texture_map/
+    ├── __init__.py
+    ├── prepare.py                 # Sample loading and standardization
+    ├── embed.py                   # Audio embedding and index creation
+    ├── retrieve.py                # Prompt embedding and similarity search
+    ├── select_layers.py           # Feature analysis and balanced role selection
+    ├── transform.py               # Per-layer producer-control processing
+    ├── mix.py                     # Source cropping, placement, mixing, and recipes
+    ├── waveform.py                # Streamlit bridge for editable waveform regions
+    └── _wavesurfer_frontend/
+        ├── index.html
+        ├── assets/                # Bundled waveform component JavaScript and CSS
+        └── NOTICE.md              # Upstream component attribution
+```
+
+`samples/`, `index/`, and `outputs/` contain local or generated data and are excluded
+from version control by default.

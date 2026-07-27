@@ -7,3 +7,5 @@ typeguard
 torchaudio
 torchcodec
 pedalboard
+streamlit
+streamlit-wavesurfer==0.6.0
