@@ -1,9 +1,15 @@
 # TextureMap
 
 TextureMap is a prompt-driven sound-design sketchpad. It searches an indexed sample
-library, proposes a balanced set of layers, lets you audition and refine each source
+library, proposes a balanced set of layers, lets you preview and refine each source
 region, then transforms and mixes the curated material into a finished WAV. Audio is
 retrieved from your own library rather than generated from scratch.
+
+## Demo
+
+[Watch the TextureMap prototype demo on YouTube](https://youtu.be/U5bWId2d440)
+
+The demo shows the full Streamlit workflow: entering a prompt, reviewing suggested samples, selecting source regions, adjusting producer controls, generating the final sound, and exporting the WAV and recipe JSON.
 
 ## How It Works
 
@@ -12,7 +18,7 @@ retrieved from your own library rather than generated from scratch.
 2. MS-CLAP converts the processed library into searchable audio embeddings.
 3. A text prompt retrieves related sounds, and lightweight audio analysis balances
    them across roles such as bed, texture, detail, foreground, low, and motion.
-4. In the Streamlit app, you can audition every proposal, exclude unwanted layers,
+4. In the Streamlit app, you can preview every proposal, exclude unwanted layers,
    and drag or resize the purple waveform region to choose the exact source audio.
 5. Producer controls transform the curated layers before they are placed on a stereo
    timeline and safely limited.
@@ -78,7 +84,7 @@ The app uses a discovery-and-curation workflow:
    Drag the purple waveform region to move it or drag either edge to resize it. When
    the edit ends, the compact player updates to preview only that region.
 4. Set brightness, distance, movement, tension, texture, output duration, and seed.
-5. Click **Generate Texture** to render, audition, and download the WAV and recipe
+5. Click **Generate Texture** to render, preview, and download the WAV and recipe
    JSON.
 
 The requested proposal count is not a required final layer count. Excluded layers are
